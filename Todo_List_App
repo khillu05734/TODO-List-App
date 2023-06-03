@@ -1,0 +1,82 @@
+const express = require('express');
+const mongoose = require('mongoose');
+
+// Create Express app
+const app = express();
+
+// Connect to MongoDB
+mongoose.connect('mongodb://localhost/todoapp', { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => {
+    console.log('Connected to MongoDB');
+  })
+  .catch((error) => {
+    console.error('Error connecting to MongoDB:', error);
+  });
+
+// Define Mongoose schema for TODO List
+const todoListSchema = new mongoose.Schema({
+  title: {
+    type: String,
+    required: true
+  },
+  tasks: [{
+    title: String,
+    description: String,
+    dueDate: Date,
+    checklist: [String],
+    labels: [String]
+  }]
+});
+
+// Create Mongoose model for TODO List
+const TodoList = mongoose.model('TodoList', todoListSchema);
+
+// Middleware for parsing JSON data
+app.use(express.json());
+
+// Route to create a new TODO List
+app.post('/lists', (req, res) => {
+  const newList = new TodoList(req.body);
+  newList.save()
+    .then(() => {
+      res.status(201).json(newList);
+    })
+    .catch((error) => {
+      res.status(500).json({ error: 'Failed to create TODO List' });
+    });
+});
+
+// Route to get all TODO Lists
+app.get('/lists', (req, res) => {
+  TodoList.find()
+    .then((lists) => {
+      res.json(lists);
+    })
+    .catch((error) => {
+      res.status(500).json({ error: 'Failed to retrieve TODO Lists' });
+    });
+});
+
+// Route to create a new task in a TODO List
+app.post('/lists/:id/tasks', (req, res) => {
+  const { id } = req.params;
+  const newTask = req.body;
+
+  TodoList.findById(id)
+    .then((list) => {
+      list.tasks.push(newTask);
+      return list.save();
+    })
+    .then((updatedList) => {
+      res.json(updatedList);
+    })
+    .catch((error) => {
+      res.status(500).json({ error: 'Failed to create task' });
+    });
+});
+
+// Start the server
+const port = 3000;
+app.listen(port, () => {
+  console.log(`Server started on port ${port}`);
+});
